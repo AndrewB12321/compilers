@@ -79,17 +79,45 @@ extern int yyerror( char *str );
 
 /* Here is the grammar: program is the start symbol. */
 
-program : expr  { return 0; }
+prog    : prog stmt  { return 0; }
+        | stmt
 	    ;
+
+stmt    : expr T_SCOLON
+        | decl
+        ;
 
 expr	: 
-	    | statement T_SCOLON
-	    | function_declaration
-        | T_LCBRACE expr T_RCBRACE
 	    ;
 
-statement   : T_IDENT T_COLON declaration
-            | 
+decl    : def T_SCOLON
+        | def T_ASSIGN T_IDENT T_SCOLON
+        | def rtrn T_LPAREN param T_ASSIGN T_LCBRACE fncbody
+        ;
+
+rtrn    : type
+        | T_VOID
+        ;
+
+param   : T_RPAREN
+        | def T_RPAREN
+        | def T_COMMA
+
+fncbody : T_RCBRACE 
+        | decl fncbody
+        | expr fncbody
+        ;
+
+
+def     : T_IDENT T_SCOLON type
+
+type    : T_CHAR
+        | T_BOOL
+        | T_AUTO
+        | T_INT
+        | T_STRING
+        | T_FUNCTION
+        ;
 
 %%
 
