@@ -1,30 +1,18 @@
-#include "token.h"
 #include <stdio.h>
-#include <stdlib.h>
-#define YYLMAX 256
-extern FILE *yyin;
-extern int yylex();
-extern char *yytext;
-extern int yylineno;
 
-int main(int argc, char* argv[])
+/* Clunky: Declare the parse function generated from parser.bison */
+extern int yyparse();
+
+int main()
 {
-	if(argc != 2) {
-		printf("need file as argument\n");
-		exit(1);
-	}
-	yyin = fopen(argv[1],"r");
-	if(!yyin) {
-		printf("could not open program.c!\n");
-		return 1;
-	}
+        printf("CSE 40243 Expression Validator\n");
+        printf("Enter an infix expression using the operators +-*/() ending with ;\n\n");
 
-	while(1) {
-		token_t t = yylex();
-		if(t==T_EOF) break;
-		if(t != T_ERROR)
-			printf("token: %d  text: %s, line: %d\n",t,yytext, yylineno);
-		else 
-			printf("Unidentified token: %s, line: %d\n",yytext, yylineno);
+	if(yyparse()==0) {
+		printf("Parse successful!\n");
+		return 0;
+	} else {
+		printf("Parse failed.\n");
+		return 1;
 	}
 }

@@ -1,5 +1,5 @@
 %{
-#include "token.h"
+#include "parser.h"
 %}
 %option yylineno
 DIGIT  [0-9]
@@ -24,20 +24,19 @@ LETTER [a-zA-Z]
 "true"     { return T_TRUE;      }
 "void"     { return T_VOID;      }
 "while"    { return T_WHILE;     }
- \+        { return T_ADD;       }
+ \+        { return T_PLUS;      }
  "("       { return T_LPAREN;    }
  ")"       { return T_RPAREN;    }
  "["       { return T_LBRACKET;  }
  "]"       { return T_RBRACKET;  }
  "++"      { return T_INCREMENT; }
  "--"      { return T_DECREMENT; }
- "-"       { return T_SUB;       }     
+ "-"       { return T_MINUS;     }     
  "*"       { return T_MULT;      }
  "/"       { return T_DIV;       }
  "%"       { return T_MOD;       }
  "<"       { return T_LESS;      }
  ">"       { return T_GREAT;     }
- "-"       { return T_SUB;       }
  "<="      { return T_LESSEQ;    }
  ">="      { return T_GREATEQ;   }
  "=="      { return T_EQ;        }
@@ -48,7 +47,7 @@ LETTER [a-zA-Z]
  ";"       { return T_SCOLON;    }
  ":"       { return T_COLON;     }
  \"        { return T_DQUOTE;    }
- '         { return T_QUOTE;    }
+ '         { return T_QUOTE;     }
  "{"       { return T_LCBRACE;   }
  "}"       { return T_RCBRACE;   }
  ","       { return T_COMMA;     }
