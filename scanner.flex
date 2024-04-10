@@ -1,5 +1,7 @@
 %{
 #include "parser.h"
+static void comment(void);
+extern void yyerror(const char *);  /* prints grammar violation message */
 %}
 %option yylineno
 DIGIT  [0-9]
@@ -7,7 +9,7 @@ LETTER [a-zA-Z]
 %%
 (" "|\t|\n)  /* skip whitespace */
 \/\/(.+)?\n     /* skip c++ style comments */
-\/\*(.+)?\*\/     /* skips c style comments */
+"/*"       { comment(); }
 "array"    { return T_ARRAY;     }
 "auto"     { return T_AUTO;      }
 "boolean"  { return T_BOOL;      }
@@ -41,6 +43,7 @@ LETTER [a-zA-Z]
  ">="      { return T_GREATEQ;   }
  "=="      { return T_EQ;        }
  "!="      { return T_NEQ;       }
+ "!"       { return T_NOT;       }
  "&&"      { return T_AND;       }
  "||"      { return T_OR;        }
  "="       { return T_ASSIGN;    }
@@ -60,3 +63,22 @@ LETTER [a-zA-Z]
 %%
 
 int yywrap() { return 1; }
+
+static void comment(void)
+{
+    int c;
+
+    while ((c = input()) != 0)
+        if (c == '*')
+        {
+            while ((c = input()) == '*')
+                ;
+
+            if (c == '/')
+                return;
+
+            if (c == 0)
+                break;
+        }
+    yyerror("unterminated comment");
+}
