@@ -1,6 +1,5 @@
 #ifndef TYPE_H
 #define TYPE_H
-
 #include "param_list.h"
 
 typedef enum {
@@ -21,5 +20,6 @@ struct type {
 
 struct type * type_create( type_t kind, struct type *subtype, struct param_list *params );
 void          type_print( struct type *t );
+void 		  type_delete( struct type *t );
 
 #endif

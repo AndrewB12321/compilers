@@ -1,6 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+
 typedef enum {
      T_EOF=0,
      T_WHILE,

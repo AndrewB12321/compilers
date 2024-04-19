@@ -6,28 +6,32 @@
 typedef enum {
 	EXPR_ADD,
 	EXPR_SUB,
-	EXPR_MUL,
+	EXPR_MULT,
 	EXPR_DIV,
-	EXPR_ASSIGN,
+	EXPR_ASSIGN, // 4
 	EXPR_OR,
 	EXPR_AND,
 	EXPR_LESSEQ,
 	EXPR_LESS,
-	EXPR_GREAT,
+	EXPR_GREAT, // 9
 	EXPR_EQ ,
 	EXPR_NEQ,
 	EXPR_GREATEQ,
 	EXPR_MOD,
-	EXPR_EXP,
+	EXPR_EXP, // 14
 	EXPR_NEGATE,
 	EXPR_UNARYSUB,
 	EXPR_INC,
 	EXPR_DEC,
-	EXPR_NAME,
+	EXPR_NAME, // 19
 	EXPR_BOOL_L,
-	EXPR_CHAR_L,
+	EXPR_CHAR_L, // 21
 	EXPR_NUM_L,
-	EXPR_STRING_L
+	EXPR_STRING_L,
+	EXPR_CALL, // 24
+	EXPR_ARG,
+	EXPR_SUBSCRIPT,
+	EXPR_EXPR_LIST
 	/* many more kinds of exprs to add here */
 } expr_t;
 
@@ -45,6 +49,8 @@ struct expr {
 };
 
 struct expr * expr_create( expr_t kind, struct expr *left, struct expr *right );
+
+void expr_delete( struct expr *e );
 
 struct expr * expr_create_name( const char *n );
 struct expr * expr_create_integer_literal( int c );
