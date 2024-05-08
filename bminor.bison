@@ -62,6 +62,7 @@
 #include "stmt.h"
 #include "symbol.h"
 #include "type.h"
+#include "string.h"
 
 // Flex
 extern char *yytext;
@@ -75,27 +76,27 @@ struct decl * parser_result = 0;
 /* Configure the semantic value type... */
 
 %union {
+	char* name;
 	struct decl *decl;
 	struct stmt *stmt;
 	struct expr *expr;
 	struct param_list *param_list;
 	struct type *type;
 	/* etc. */
-	char *TOKEN_IDENT;
 	};
 
 %type <decl> program global_statement_list global_statement decl_statement decl_expr init_statement 
-			 init_expr func_decl_statement func_def_statement
-%type <stmt> statement_list statement expr_statement block_statement if_statement loop_statement
- 
-%type <expr> expr_list expr assign_expr or_expr and_expr rel_expr add_expr
-			 mul_expr exp_expr unary_expr postfix_expr primary_expr array expr_list_tail
+			 init_expr func_decl_statement func_def_statement func_decl_expr
+%type <stmt> statement_list statement block_statement if_statement loop_statement ret_statement print_statement
+			 for_loop while_loop 
+%type <expr> expr_list expr assign_expr or_expr and_expr rel_expr add_expr for_loop_param
+			 mul_expr exp_expr unary_expr postfix_expr primary_expr array expr_list_tail expr_statement
+			 subscript_expr subscript_expr_list subscript_expr_list_tail param_list param_list_tail 
+%type <type> type array_spec formal_array_spec
 
-%type <type> type array_spec
+%type <param_list>  formal_param_list formal_param formal_param_list_tail 
 
-%type <param_list> param_list param_list_tail
-
-%type <TOKEN_IDENT> TOKEN_IDENT
+%type <name> indentifier
 
 %%
 
@@ -117,34 +118,52 @@ global_statement
 	| init_statement
 	{ $$ = $1; }
 	| func_decl_statement
+	{ $$ = $1; }
 	| func_def_statement
+	{ $$ = $1; }
 	;
 
 statement_list	
 	: statement statement_list
+	{ $1->next = $2; 
+	  $$ = $1; }
 	| %empty
+	{ $$ = 0; }
 	;
 
 statement			
 	: block_statement
+	{ $$ = $1; }
 	| if_statement
+	{ $$ = $1; }
 	| expr_statement
+	{ $$ = stmt_create(STMT_EXPR, 0, 0, $1, 0, 0, 0, 0); }
 	| loop_statement
+	{ $$ = $1; }
 	| decl_statement
+	{ $$ = stmt_create(STMT_DECL, $1, 0, 0, 0, 0, 0, 0); }
 	| init_statement
+	{ $$ = stmt_create(STMT_DECL, $1, 0, 0, 0, 0, 0, 0); }
 	| func_decl_statement
+	{ $$ = stmt_create(STMT_DECL, $1, 0, 0, 0, 0, 0, 0); }
 	| func_def_statement
+	{ $$ = stmt_create(STMT_DECL, $1, 0, 0, 0, 0, 0, 0); }
 	| ret_statement
+	{ $$ = $1; }
 	| print_statement
+	{ $$ = $1; }
 	;
 
 block_statement	
 	: TOKEN_LCURLY statement_list TOKEN_RCURLY
+	{ $$ = stmt_create(STMT_BLOCK, 0, 0, 0, 0, $2, 0, 0);  }
 	;
 
 if_statement	
 	: TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN statement
+	{ $$ = stmt_create(STMT_IF_ELSE, 0, 0, $3, 0, $5, 0, 0);  }
 	| TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN statement TOKEN_ELSE statement
+	{ $$ = stmt_create(STMT_IF_ELSE, 0, 0, $3, 0, $5, $7, 0);  }
 	;
 
 expr_statement	
@@ -234,6 +253,7 @@ unary_expr
 postfix_expr	
 	: postfix_expr TOKEN_INC
 	{ $$ = expr_create(EXPR_INC, $1, 0); }
+
 	| postfix_expr TOKEN_DEC
 	{ $$ = expr_create(EXPR_DEC, $1, 0); }
 	| primary_expr
@@ -241,8 +261,8 @@ postfix_expr
 	;
 
 primary_expr	
-	: TOKEN_IDENT
-	{ $$ = expr_create_name(yytext); }
+	: indentifier
+	{ $$ = expr_create_name($1); }
 	| TOKEN_NUMBER
 	{ $$ = expr_create_integer_literal(atoi(yytext)); }
 	| TOKEN_TRUE
@@ -250,28 +270,42 @@ primary_expr
 	| TOKEN_FALSE
 	{ $$ = expr_create_boolean_literal(0); }
 	| TOKEN_CHAR_LIT
-	{ $$ = expr_create_char_literal((char)atoi(yytext)); }
+	{ $$ = expr_create_char_literal(yytext[1]); }
 	| TOKEN_STRING_LIT
-	{ $$ = expr_create_string_literal("hi"); } // FIX
+	{ $$ = expr_create_string_literal(strdup(yytext)); } // FIX 
 	| TOKEN_LPAREN expr TOKEN_RPAREN
 	{ $$ = $2; }
-	| TOKEN_IDENT subscript_expr_list
-	| TOKEN_IDENT TOKEN_LPAREN param_list TOKEN_RPAREN
+	| indentifier subscript_expr_list
+	{ $$ = expr_create(EXPR_SUBSCRIPT, expr_create_name($1), $2); }
+	| indentifier TOKEN_LPAREN param_list TOKEN_RPAREN
+	{ $$ = expr_create(EXPR_CALL, expr_create_name($1), $3); }
 	| array
 	{ $$ = $1; }
 	;
 
+indentifier
+	: TOKEN_IDENT
+	{ $$ = strdup(yytext); }
+	;
+
 subscript_expr_list 
 	: subscript_expr subscript_expr_list_tail
+	{ 
+		if(!$2) $$ = $1;
+		else $$ = expr_create(EXPR_SUBSCRIPT, $1, $2);
+	}
 	;
 
 subscript_expr		
 	: TOKEN_LBRACKET expr TOKEN_RBRACKET
+	{ $$ = $2; }
 	;
 
 subscript_expr_list_tail	
 	: subscript_expr subscript_expr_list_tail
+	{ $$ = expr_create(EXPR_SUBSCRIPT, $1, $2); }
 	| %empty
+	{ $$ = 0; }
 	;
 
 type			
@@ -286,24 +320,31 @@ type
 	| TOKEN_BOOLEAN
 	{ $$ = type_create(TYPE_BOOLEAN, 0, 0); }
 	| TOKEN_AUTO
+	{ $$ = 0; }
 	;
 
 loop_statement	
 	: for_loop
+	{ $$ = $1; }
 	| while_loop
+	{ $$ = $1; }
 	;
 
 for_loop 		
 	: TOKEN_FOR TOKEN_LPAREN for_loop_param TOKEN_SEMI for_loop_param TOKEN_SEMI for_loop_param TOKEN_RPAREN statement
+	{ $$ = stmt_create(STMT_FOR, 0, $3, $5, $7, $9, 0, 0); }
 	;
 
 for_loop_param	
 	: expr
+	{ $$ = $1; }
 	| %empty
+	{ $$ = 0;}
 	;
 
 while_loop		
 	: TOKEN_WHILE TOKEN_LPAREN expr TOKEN_RPAREN statement
+	{ $$ = stmt_create(STMT_FOR, 0, 0, $3, 0, $5, 0, 0); }
 	;
 
 decl_statement	
@@ -312,15 +353,15 @@ decl_statement
 	;
 
 decl_expr		
-	: TOKEN_IDENT TOKEN_COLON array_spec type
+	: indentifier TOKEN_COLON array_spec type
 	{ 
 		if($3) {
 			struct type* tmp = $3;
 			while(tmp->subtype) tmp = tmp->subtype;
 			tmp->subtype = $4;
-			$$ = decl_create(0, $3, 0, 0, 0);
+			$$ = decl_create($1, $3, 0, 0, 0);
 		} else 
-			$$ = decl_create(0, $4, 0, 0, 0);
+			$$ = decl_create($1, $4, 0, 0, 0);
 	  
 	}
 	;
@@ -352,60 +393,94 @@ init_expr
 	;
 
 func_decl_expr 	
-	: TOKEN_IDENT TOKEN_COLON TOKEN_FUNCTION type TOKEN_LPAREN formal_param_list TOKEN_RPAREN
+	: indentifier TOKEN_COLON TOKEN_FUNCTION type TOKEN_LPAREN formal_param_list TOKEN_RPAREN
+	{ $$ = decl_create($1, type_create(TYPE_FUNCTION, $4, $6), 0, 0, 0); }
 	;
 
 func_decl_statement	
 	: func_decl_expr TOKEN_SEMI
+	{ $$ = $1; }
 	;
 
 func_def_statement	
 	: func_decl_expr TOKEN_ASSIGN block_statement
+	{
+		$1->code = $3;
+		$$ = $1;
+	}
 	;
 
 formal_param_list	
 	: formal_param formal_param_list_tail
+	{ $1->next = $2;
+	  $$ = $1; }
 	| %empty
+	{ $$ = 0; }
 	;
 
 formal_param_list_tail	
 	: TOKEN_COMMA formal_param formal_param_list_tail
+	{ $2->next = $3; 
+	  $$ = $2; }
 	| %empty
+	{ $$ = 0; }
 	;
 
 formal_param		
-	: TOKEN_IDENT TOKEN_COLON formal_array_spec type
+	: indentifier TOKEN_COLON formal_array_spec type
+	{
+		if($3) {
+			struct type* tmp = $3;
+			while(tmp->subtype) tmp = tmp->subtype;
+			tmp->subtype = $4;
+			$$ = param_list_create($1, $3, 0);
+		} else 
+			$$ = param_list_create($1, $4, 0);
+	}
 	;
 
 formal_array_spec	
 	: TOKEN_ARRAY TOKEN_LBRACKET TOKEN_RBRACKET formal_array_spec
+	{
+		if($4) $$ = type_create(TYPE_ARRAY, $4, 0); 
+		else   $$ =	type_create(TYPE_ARRAY, 0, 0); 
+	}
 	| %empty
+	{ $$ = 0; }
 	;
 
 ret_statement		
 	: TOKEN_RETURN expr TOKEN_SEMI
+	{ $$ = stmt_create(STMT_RETURN, 0, 0, $2, 0, 0, 0, 0); }
 	| TOKEN_RETURN TOKEN_SEMI
+	{ $$ = stmt_create(STMT_RETURN, 0, 0, 0, 0, 0, 0, 0); }
 	;
 
 param_list			
 	: expr param_list_tail
+	{ $$ = expr_create(EXPR_ARG, $1, $2); }
 	| %empty
+	{ $$ = 0; }
 	;
 
 param_list_tail		
 	: TOKEN_COMMA expr param_list_tail
+	{ $$ = expr_create(EXPR_ARG, $2, $3); }
 	| %empty
+	{ $$ = 0; }
 	;
 
 print_statement		
 	: TOKEN_PRINT expr_list TOKEN_SEMI
+	{ $$ = stmt_create(STMT_PRINT, 0, 0, $2, 0, 0, 0, 0); }
 	| TOKEN_PRINT TOKEN_SEMI
+	{ $$ = stmt_create(STMT_RETURN, 0, 0, 0, 0, 0, 0, 0); }
 	;
 
 expr_list			
 	: expr expr_list_tail
 	{
-		expr_create(EXPR_EXPR_LIST, $1, $2);
+	 $$ = expr_create(EXPR_EXPR_LIST, $1, $2);
 	}
 	;
 

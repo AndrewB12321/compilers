@@ -3,9 +3,15 @@
 #include "decl.h"
 #include "type.h"
 #include "param_list.h"
-#include "indent.h"
+#include "symbol.h"
+#include "codegen.h"
+#include "stack.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+extern struct stack* global_stack;
+extern struct scratch_register* global_register_Table;
+extern FILE* global_output_file;
 
 struct expr * expr_create( expr_t kind, struct expr *left, struct expr *right ) {
     struct expr* tmp = malloc(sizeof(*tmp));
@@ -102,7 +108,7 @@ void expr_print( struct expr *e ) {
             break;
         case EXPR_EQ: 
             expr_print(e->left);
-            printf(" >= ");
+            printf(" == ");
             expr_print(e->right);
             break;
         case EXPR_NEQ:
@@ -160,10 +166,10 @@ void expr_print( struct expr *e ) {
             expr_print(e->left);
             printf("(");
             expr_print(e->right);
+            printf(")");
             break;
         case EXPR_ARG:
             expr_print(e->left);
-            break;
             if(e->right){
                 printf(", ");
                 expr_print(e->right);
@@ -180,12 +186,23 @@ void expr_print( struct expr *e ) {
             if(e->right){
                 printf(", ");
                 expr_print(e->right);
-            }
+            } 
             break;
     }
 
 
 }
+
+void expr_resolve(struct expr *e) {
+    if(!e) return;
+    if( e->kind==EXPR_NAME ) {
+    e->symbol = scope_lookup(e->name);
+    } else {
+        expr_resolve( e->left );
+        expr_resolve( e->right );
+    }
+}
+
 
 void expr_delete( struct expr *e )
 {
@@ -193,5 +210,107 @@ void expr_delete( struct expr *e )
 	if(!e) return;
 	expr_delete(e->left);
 	expr_delete(e->right);
+    symbol_delete(e->symbol);
 	free(e);
 }
+
+struct type * expr_typecheck( struct expr *e ) {
+    if(!e) return 0;
+    struct type *lt = expr_typecheck(e->left);
+    struct type *rt = expr_typecheck(e->right);
+    struct type *result;
+    switch(e->kind) {
+        case EXPR_UNARYSUB:
+        case EXPR_ADD:
+        case EXPR_SUB:
+        case EXPR_MULT:
+        case EXPR_DIV:
+        case EXPR_MOD:
+        case EXPR_EXP:
+            if( lt->kind!=TYPE_INTEGER || rt->kind!=TYPE_INTEGER ) {
+            /* display an error */
+            }
+            result = type_create(TYPE_INTEGER,0,0);
+            break;
+        case EXPR_ASSIGN:
+            if(!type_equals(lt, rt)) {
+                // error
+            }
+            result = type_create(rt->kind,0,0);
+            break;
+        case EXPR_OR:
+        case EXPR_AND:
+        case EXPR_LESSEQ:
+        case EXPR_LESS:
+        case EXPR_GREAT:
+        case EXPR_EQ:
+        case EXPR_NEQ:
+        case EXPR_GREATEQ:
+            if(!type_equals(lt,rt)) {
+            /* display an error */
+            }
+            if(lt->kind==TYPE_VOID || lt->kind==TYPE_ARRAY || lt->kind==TYPE_FUNCTION) {
+            /* display an error */
+            }
+        result = type_create(TYPE_BOOLEAN,0,0);
+        break;
+        case EXPR_NEGATE:
+            if(lt->kind != TYPE_BOOLEAN ||lt->kind != TYPE_INTEGER) {
+                // error
+            }
+            result = type_create(lt->kind,0,0);
+            break;
+        case EXPR_INC:
+        case EXPR_DEC:
+            if(lt->kind != TYPE_INTEGER) {
+                // error
+            }
+            result = type_create(TYPE_INTEGER,0,0);
+            break;
+        case EXPR_NAME:
+            result = type_create(TYPE_STRING,0,0);
+            break;
+        case EXPR_BOOL_L:
+            result = type_create(TYPE_BOOLEAN,0,0);
+            break;
+        case EXPR_CHAR_L:
+            result = type_create(TYPE_CHARACTER,0,0);
+            break;
+        case EXPR_NUM_L:
+            result = type_create(TYPE_INTEGER,0,0);
+            break;
+        case EXPR_STRING_L:
+            result = type_create(TYPE_STRING,0,0);
+            break;
+        case EXPR_CALL:
+        case EXPR_ARG:
+            break;
+        case EXPR_SUBSCRIPT:
+            if(lt->kind==TYPE_ARRAY) {
+                if(rt->kind!=TYPE_INTEGER) {
+                    /* error: index not an integer */
+                }
+                result = type_copy(lt->subtype);
+            } else {
+                /* error: not an array */
+                /* but we need to return a valid type */
+                result = type_copy(lt);
+            }
+        case EXPR_EXPR_LIST: 
+            if(lt->kind==TYPE_ARRAY) {
+                if(rt->kind!=TYPE_INTEGER) {
+                    /* error: index not an integer */
+                }
+                result = type_copy(lt->subtype);
+            } else {
+                /* error: not an array */
+                /* but we need to return a valid type */
+                result = type_copy(lt);
+            }
+            break;  
+    }
+    type_delete(lt);
+    type_delete(rt);
+    return result;
+}
+

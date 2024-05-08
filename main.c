@@ -5,8 +5,18 @@
 #include "decl.h"
 #include "type.h"
 #include "param_list.h"
-#include "indent.h"
-/* Clunky: Declare the parse function generated from parser.bison */
+#include "symbol.h"
+#include "codegen.h"
+#include "hash_table.h"
+#include "stack.h"
+
+struct stack* global_stack;
+struct scratch_register** global_register_Table;
+FILE* global_output_file;
+int global_label_count;
+
+
+
 extern int yyparse();
 extern int yylex();
 extern char* yytext;
@@ -15,10 +25,19 @@ int main()
 {	
 	//int t = yylex();
 	//printf("id: %d, text: %s\n", t, yytext);
+
+	global_stack = stack_create();
+	global_register_Table = create_global_table();
+	global_output_file = fopen("./tmp.asm", "w");
+	global_label_count = 0;
+	scope_enter();
+
 	if(yyparse()==0) {
 		printf("Parse successful!\n");
 		decl_print(parser_result, 0);
-		decl_delete(parser_result);
+		decl_resolve(parser_result);
+		decl_typecheck(parser_result);
+		scope_exit();
 		return 0;
 	} else {
 		printf("Parse failed.\n");
@@ -30,4 +49,5 @@ int main()
 		decl_delete(parser_result);
 		return 1;
 	}
+
 }

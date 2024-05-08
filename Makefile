@@ -1,8 +1,8 @@
 
 # The top level rule indicates how to link everything together into calc
 
-parse: main.o scanner.o parser.o decl.o expr.o stmt.o type.o param_list.o indent.o
-	gcc main.o scanner.o parser.o decl.o expr.o stmt.o type.o param_list.o indent.o -o parse -lm
+parse: main.o scanner.o parser.o decl.o expr.o stmt.o type.o param_list.o  hash_table.o stack.o symbol.o codegen.o
+	gcc main.o scanner.o parser.o decl.o expr.o stmt.o type.o param_list.o  hash_table.o stack.o symbol.o codegen.o -o parse -lm
 
 # This pattern indicates that any .o file depends
 # upon the .c file of the same name, and all of the .h files.

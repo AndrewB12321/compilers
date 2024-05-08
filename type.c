@@ -3,9 +3,14 @@
 #include "decl.h"
 #include "type.h"
 #include "param_list.h"
-#include "indent.h"
+#include "symbol.h"
+#include "codegen.h"
+#include "stack.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
+extern struct stack* global_stack;
 
 struct type * type_create( type_t kind, struct type *subtype, struct param_list *params ) {
     struct type *tmp = malloc(sizeof(*tmp));
@@ -38,16 +43,17 @@ void type_print( struct type *t ) {
             type_print(t->subtype);
             break;
         case TYPE_FUNCTION:
-            printf("function");
+            printf("function ");
             type_print(t->subtype);
-            printf("(");
+            printf(" (");
             param_list_print(t->params);
-            printf(")");
+            printf(") ");
 
             break;
 
     }
 }
+
 
 void type_delete( struct type *t ) {
     if(!t) return;
@@ -55,3 +61,26 @@ void type_delete( struct type *t ) {
     type_delete(t->subtype);
     free(t);
 }
+
+bool type_equals( struct type *a, struct type *b )
+{
+    if( a->kind == b->kind ) {
+        if ((TYPE_ARRAY == a->kind) && (TYPE_ARRAY == b-> kind)) {
+            return type_equals(a->subtype, b->subtype);
+        } else if ( a->kind == TYPE_FUNCTION && b->kind == TYPE_FUNCTION) {
+            return type_equals(a->subtype, b->subtype) &&
+            param_list_type_equals(a->params, b->params);
+        } else return true;
+    } else return false;
+}
+
+struct type * type_copy( struct type *t ) {
+    if(!t) return NULL;
+    struct type* copy = malloc(sizeof(*copy));
+    copy->kind = t->kind;
+    copy->params = param_list_copy(t->params);
+    copy->subtype = type_copy(t->subtype);
+    return copy;
+}
+
+

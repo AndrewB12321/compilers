@@ -1,7 +1,14 @@
 #ifndef EXPR_H
 #define EXPR_H
 
-#include "symbol.h"
+#include "stmt.h"
+#include "expr.h"
+#include "decl.h"
+#include "type.h"
+#include "param_list.h"
+#include "stack.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 typedef enum {
 	EXPR_ADD,
@@ -46,6 +53,8 @@ struct expr {
 	int literal_value;
 	const char * string_literal;
 	struct symbol *symbol;
+
+	int reg;
 };
 
 struct expr * expr_create( expr_t kind, struct expr *left, struct expr *right );
@@ -57,6 +66,11 @@ struct expr * expr_create_integer_literal( int c );
 struct expr * expr_create_boolean_literal( int c );
 struct expr * expr_create_char_literal( char c );
 struct expr * expr_create_string_literal( const char *str );
+
+struct type * expr_typecheck( struct expr *e );
+
+
+void expr_resolve( struct expr *e);
 
 void expr_print( struct expr *e );
 
